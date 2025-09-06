@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+"""
+Cisco Router Configuration Backup Script
+Automatically backs up running configurations from multiple Cisco routers
+"""
+
+from netmiko import ConnectHandler
+import netmiko
+from datetime import datetime
+import os
+import sys
+
+# Router configurations
+Router1 = {
+    'device_type': 'cisco_ios',
+    'ip': '192.168.201.135',
+    'username': 'admin',
+    'password': '123',
+    'secret': 'cisco',
+    'verbose': False,
+}
+
+all_routers = [Router1]
+
+# Create filename with date-month-year
+current_time = datetime.now()
+current_date = current_time.strftime("%d")
+current_month = current_time.strftime("%m")
+current_year = current_time.strftime("%Y")
+
+print(f"Starting backup process on {current_date}/{current_month}/{current_year}")
+
+# Create backup directory if it doesn't exist
+backup_dir = "router_backups"
+if not os.path.exists(backup_dir):
+    os.makedirs(backup_dir)
+    print(f"Created backup directory: {backup_dir}")
+
+# Login to router
+for i, router in enumerate(all_routers, 1):
+    try:
+        print(f"\nConnecting to router ({router['ip']})...")
+        
+        # Establish connection
+        net_connect = ConnectHandler(**router)
+        net_connect.enable()
+        
+        # Get hostname router
+        get_hostname_router = "show running-config | include hostname"
+        GetHostName_command = net_connect.send_command_timing(get_hostname_router)
+        
+        # Extract hostname from command output
+        hostname_parts = GetHostName_command.split()
+        if len(hostname_parts) >= 2:
+            hostname_router = hostname_parts[1]
+        else:
+            hostname_router = f"router_{router['ip'].replace('.', '_')}"
+            print(f"Warning: Could not get hostname, using {hostname_router}")
+        
+        print(f"Connected to: {hostname_router}")
+        
+        # Set name for backup file
+        filename = f"{hostname_router}_{current_date}_{current_month}_{current_year}.txt"
+        filepath = os.path.join(backup_dir, filename)
+        
+        # Show run and store in file
+        print(f"Backing up configuration...")
+        running_cfg = net_connect.send_command_timing("show running-config")
+        
+        # Write to file with proper encoding and error handling
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(f"! Configuration backup for {hostname_router}\n")
+            f.write(f"! Backup date: {current_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"! Router IP: {router['ip']}\n")
+            f.write("!\n")
+            f.write(running_cfg)
+        
+        print(f"Backup saved: {filepath}")
+        
+        # Close connection
+        net_connect.disconnect()
+        print(f"Disconnected from {hostname_router}")
+        
+    except netmiko.exceptions.NetmikoTimeoutException:
+        print(f"Error: Timeout connecting to {router['ip']}")
+        continue
+    except netmiko.exceptions.NetmikoAuthenticationException:
+        print(f"Error: Authentication failed for {router['ip']}")
+        continue
+    except Exception as e:
+        print(f"Error with router {router['ip']}: {str(e)}")
+        continue
+
+print(f"\nBackup process completed. Files saved in '{backup_dir}' directory.")

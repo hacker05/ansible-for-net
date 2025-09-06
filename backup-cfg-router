@@ -1,0 +1,57 @@
+# Cisco Router Configuration Backup Script Configuration
+# Automatically backs up running configurations from multiple Cisco routers
+
+script_info:
+  name: "Cisco Router Configuration Backup Script"
+  description: "Automatically backs up running configurations from multiple Cisco routers"
+  version: "1.0"
+  author: "Network Admin"
+
+# Backup settings
+backup_settings:
+  backup_directory: "router_backups"
+  filename_format: "{hostname}_{day}_{month}_{year}.txt"
+  date_format: "%d/%m/%Y"
+  timestamp_format: "%Y-%m-%d %H:%M:%S"
+  file_encoding: "utf-8"
+  
+# Router configurations
+routers:
+  - name: "Router1"
+    device_type: "cisco_ios"
+    ip: "192.168.201.135"
+    username: "admin"
+    password: "123"
+    secret: "cisco"
+    verbose: false
+
+# Commands to execute
+commands:
+  hostname_command: "show running-config | include hostname"
+  backup_command: "show running-config"
+  enable_mode: true
+
+# File header template
+backup_file_header:
+  - "! Configuration backup for {hostname}"
+  - "! Backup date: {timestamp}"
+  - "! Router IP: {ip}"
+  - "!"
+
+# Error handling settings
+error_handling:
+  continue_on_timeout: true
+  continue_on_auth_failure: true
+  continue_on_general_error: true
+  
+# Logging settings
+logging:
+  show_progress: true
+  show_connection_status: true
+  show_backup_status: true
+  show_completion_message: true
+
+# Network timeouts (seconds)
+timeouts:
+  connection_timeout: 30
+  command_timeout: 60
